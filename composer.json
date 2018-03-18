@@ -22,13 +22,6 @@
         },
         "files":["src/helpers/functions.php"]
     },
-    "scripts": {
-        "env": [
-            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
-        ],"post-autoload-dump": [
-            "@composer env"
-        ]
-    },
     "config":{
         "optimize-autoloader":true
     }
