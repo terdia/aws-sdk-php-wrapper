@@ -1,23 +1,8 @@
-# aws-sdk-php-wrapper
-A simple wrapper over aws php sdk to perform basic file management task
-
-## Installation
-composer require devscreencast/aws-sdk-php-wrapper
-
-## Basic Usage
-
-### Environment Variables
-#### Create a .env file with the following:
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-
-```php
 <?php
-require_once 'vendor/autoload.php';
+require_once __DIR__ .'/../vendor/autoload.php';
 use Devscreencast\S3Wrapper\Storage;
 
-#load environment variables
-$env = new \Dotenv\Dotenv('path_to/.env');
+$env = new \Dotenv\Dotenv(basePath());
 $env->load();
 
 try{
@@ -28,7 +13,7 @@ try{
     $storage = new Storage([
        'region' => 'us-east-1',
        'version' => 'latest',
-       'bucket' => ''
+       'bucket' => 'learning-s3-bucket.com'
     ]);
     
     if(isset($_POST['submit'])){
@@ -36,16 +21,13 @@ try{
         if(!$name){
             $msg = 'Please select a file';
         }
-        
-       /**
-        * Move a file to bucket
-        * @param folder (optional) if omitted file in placed inside bucket
-        * @param filename (optional) if omitted a unique filename is generated
-        */
+        /**
+         * @param folder (optional) if omitted file in placed inside bucket
+         * @param filename (optional) if omitted a unique filename is generated
+         */
        $path = $storage->store('avatars/', $name);
     }
     
-    # delete a file from bucket
     if(isset($_GET['delete'])){
         $item = $_GET['delete'];
         if(!$item){
@@ -59,14 +41,10 @@ try{
         }
     }
     
-    # get all objects from a buckets as iterator instance
     $bucket_contents = $storage->getBucketContents();
-    foreach ($bucket_contents as $bucket_content){
-            echo $bucket_contents['Key'] . '<br />';
-    }
-   
+    
 }catch (Exception $ex){
     die($ex->getMessage());
 }
-```
-For complete example / demo refer to example folder 
+
+require_once __DIR__ .'/app.php';

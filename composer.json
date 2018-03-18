@@ -1,0 +1,35 @@
+{
+    "name": "devscreencast/aws-sdk-php-wrapper",
+    "description": "A simple wrapper over aws php sdk to perform basic file management task",
+    "keywords": ["aws", "s3", "php sdk", "file upload", "php"],
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "terdia",
+            "email":"support@devscreencast.com",
+            "homepage": "https://devscreencast.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.5",
+        "aws/aws-sdk-php": "^3.52",
+        "vlucas/phpdotenv": "^2.4"
+    },
+    "autoload":{
+        "psr-4":{
+            "Devscreencast\\S3Wrapper\\":"src"
+        },
+        "files":["src/helpers/functions.php"]
+    },
+    "scripts": {
+        "env": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],"post-autoload-dump": [
+            "@composer env"
+        ]
+    },
+    "config":{
+        "optimize-autoloader":true
+    }
+}
