@@ -63,7 +63,7 @@
                     <?php foreach ($bucket_contents as $bucket_content): ?>
                         <tr>
                             <td><?= $bucket_content['Key'] ?></td>
-                            <td><?= getObjectName($bucket_content['Key']) ?></td>
+                            <td><?= $storage->getObjectName($bucket_content['Key']) ?></td>
                             <td> <a href="<?= $storage->getUrl($bucket_content['Key']) ?>">Download</a> </td>
                             <td><a href="?delete=<?= $bucket_content['Key'] ?>">Delete</a> </td>
                         </tr>
