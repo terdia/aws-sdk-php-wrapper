@@ -37,12 +37,13 @@ try{
             $msg = 'Please select a file';
         }
         
-       /**
-        * Move a file to bucket
-        * @param folder (optional) if omitted file in placed inside bucket
-        * @param filename (optional) if omitted a unique filename is generated
-        */
-       $path = $storage->store('avatars/', $name);
+      /**
+       * @param $key, the name given to the file upload field in the html form
+       * @param $folder (optional) if omitted file in placed inside bucket
+       * @param $filename (optional) if omitted a unique filename is generated
+       * @param $options (optional) https://docs.aws.amazon.com/aws-sdk-php/v3/api/api-s3-2006-03-01.html#putobject
+       */
+       $path = $storage->store('file', 'avatars/', $name);
     }
     
     # delete a file from bucket

@@ -22,10 +22,12 @@ try{
             $msg = 'Please select a file';
         }
         /**
-         * @param folder (optional) if omitted file in placed inside bucket
-         * @param filename (optional) if omitted a unique filename is generated
+         * @param $key, the name given to the file upload field in the html form
+         * @param $folder (optional) if omitted file in placed inside bucket
+         * @param $filename (optional) if omitted a unique filename is generated
+         * @param $options (optional) https://docs.aws.amazon.com/aws-sdk-php/v3/api/api-s3-2006-03-01.html#putobject
          */
-       $path = $storage->store('avatars/', $name);
+       $path = $storage->store('file', 'avatars/');
     }
     
     if(isset($_GET['delete'])){

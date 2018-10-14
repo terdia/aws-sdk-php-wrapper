@@ -1,126 +1,132 @@
 <?php
 
 namespace Devscreencast\S3Wrapper;
-use Aws\Sdk;
+
 use Aws\Exception\AwsException;
+use Aws\Sdk;
+use Exception;
 
 class Storage
 {
-    private $config, $client, $setUpData;
-    protected $keys = ['region', 'version', 'bucket'];
-    
+    /** @var array $requiredS3ParamsKeys */
+    protected $requiredS3ParamsKeys = ['region', 'version', 'bucket'];
+
+    /** @var array $s3Params */
+    private $s3Params;
+
+    /** @var \Aws\S3\S3Client $client */
+    private $client;
+
     /**
      * Storage constructor.
-     * @param array $config - required keys
-     * @throws \Exception
+     * @param array $s3Params
+     * @throws Exception
      */
-    public function __construct(array $config)
+    public function __construct(array $s3Params)
     {
-        if(!is_array($config) || count($config) < 3){
-            throw new \Exception('config [] is required');
+        if (!($this->requiredS3ParamsKeys == array_keys($s3Params))) {
+            throw new Exception('config [] should contain the following keys ' . implode(',', $this->requiredS3ParamsKeys));
         }
-        
-        if(!($this->keys == array_keys($config))){
-            throw new \Exception('config [] should contain the following keys '. implode(',', $this->keys));
-        }
-        
-        $this->config = $config;
-        $this->setUpData = [
-            'region' => $this->config['region'],
-            'version' => $this->config['version'],
-        ];
-        
-        $this->client = $this->createS3Client();
+
+        $this->s3Params = $s3Params;
+
+        $this->client = $this->createS3Client([
+                'region' => $this->s3Params['region'],
+                'version' => $this->s3Params['version']
+            ]
+        );
     }
-    
-    public function createS3Client()
+
+    public function createS3Client(array $params)
     {
-        $sdk = new Sdk($this->setUpData);
+        $sdk = new Sdk($params);
         return $sdk->createS3();
     }
-    
+
     /**
-     * @param $bucket_name
-     * @return \Aws\Result|string
+     * @param $bucketName
+     * @return \Aws\Result
+     * @throws \Exception
      */
-    public function createBucket($bucket_name)
+    public function createBucket($bucketName)
     {
-    
-        if(!$bucket_name){
-            return 'Bucket name is required';
+
+        if (!$bucketName) {
+            throw new Exception('Bucket name is required');
         }
-        try{
+        try {
             return $this->client->createBucket([
-               'Bucket' => $bucket_name
+                'Bucket' => $bucketName
             ]);
-        }catch (AwsException $ex){
-            die($ex->getMessage());
+        } catch (AwsException $ex) {
+            throw new Exception($ex->getMessage());
         }
     }
-    
+
     /**
-     * Save file to s3
-     * @param null $folder
+     * Move file to s3 storage
+     *
+     * @param $key
+     * @param null $destinationFolder
      * @param null $filename
+     * @param array $options refer to https://docs.aws.amazon.com/aws-sdk-php/v3/api/api-s3-2006-03-01.html#putobject
      * @return null|string
+     * @throws Exception
      */
-    public function store($folder = null, $filename = null)
+    public function store($key, $destinationFolder = null, $filename = null, $options = [])
     {
-        if($filename === null){
+        if ($filename === null) {
             $filename = md5(microtime());
-            $fileExt = guestFileExtension();
-            $filename = $filename .'.'.$fileExt;
+            $fileExt = FileUploadHelper::guessUploadFileExtension();
+            $filename = $filename . '.' . $fileExt;
         }
-        
-        if($folder === null){
-            $path = $filename;
-        }else{
-            $path = $folder.$filename;
+        $destinationFolder === null ? $path = $filename : $path = $destinationFolder . $filename;
+        $params = [
+            'Bucket' => $this->s3Params['bucket'],
+            'Key' => $path,
+            'SourceFile' => FileUploadHelper::getFileSource($key),
+            'StorageClass' => 'STANDARD',
+            'CacheControl' => 'max-age=86400',
+            'ACL' => 'public-read'
+        ];
+
+        try {
+            $this->client->putObject(array_merge($params, $options));
+        } catch (AwsException $ex) {
+            throw new Exception($ex->getMessage());
         }
-        try{
-            $this->client->putObject([
-                'Bucket' => $this->config['bucket'],
-                'Key' => $path,
-                'SourceFile' => getFileTmpLocation(),
-                'StorageClass' => 'STANDARD',
-                'CacheControl' => 'max-age=86400',
-                'ACL' => 'public-read'
-            ]);
-        }catch (AwsException $ex){
-            die($ex->getMessage());
-        }
-        
+
         return $path;
     }
-    
+
     /**
      * Get items in a bucket
      *
-     * @param null $bucket_name
+     * @param null $bucketName
      * @param string $folder
      * @return \Iterator
      * @throws \Exception
      */
-    public function getBucketContents($bucket_name = null, $folder = '')
+    public function getBucketContents($bucketName = null, $folder = '')
     {
-        if($bucket_name === null){
-            $bucket = $this->config['bucket'];
-            if(!$bucket){
-                throw new \Exception('Bucket name is required');
+        if ($bucketName === null) {
+            $bucket = $this->s3Params['bucket'];
+            if (!$bucket) {
+                throw new Exception('Bucket name is required');
             }
-        }else{
-            $bucket = $bucket_name;
+        } else {
+            $bucket = $bucketName;
         }
-        try{
+        try {
             return $this->client->getIterator('ListObjects', [
                 'Bucket' => $bucket,
                 'Prefix' => $folder
             ]);
-        }catch (AwsException $ex){
-            die($ex->getMessage());
+        } catch (AwsException $ex) {
+            throw new Exception($ex->getMessage());
         }
     }
-    
+
     /**
      * Get a list of buckets
      * @return mixed
@@ -129,7 +135,7 @@ class Storage
     {
         return $this->client->listBuckets()['Buckets'];
     }
-    
+
     /**
      * Get the url for the specified object
      *
@@ -140,23 +146,23 @@ class Storage
      */
     public function getUrl($key, $bucket_name = null)
     {
-        if($bucket_name === null){
-            $bucket = $this->config['bucket'];
-            if(!$bucket){
-                throw new \Exception('Bucket name is required');
+        if ($bucket_name === null) {
+            $bucket = $this->s3Params['bucket'];
+            if (!$bucket) {
+                throw new Exception('Bucket name is required');
             }
-        }else{
+        } else {
             $bucket = $bucket_name;
         }
-        
-        try{
+
+        try {
             return $this->client->getObjectUrl($bucket, $key);
-        }catch (AwsException $ex){
-            die($ex->getMessage());
+        } catch (AwsException $ex) {
+            throw new Exception($ex->getMessage());
         }
-        
+
     }
-    
+
     /**
      * Get the specified object
      *
@@ -167,24 +173,34 @@ class Storage
      */
     public function getOneObject($key, $bucket_name = null)
     {
-        if($bucket_name === null){
-            $bucket = $this->config['bucket'];
-            if(!$bucket){
-                throw new \Exception('Bucket name is required');
+        if ($bucket_name === null) {
+            $bucket = $this->s3Params['bucket'];
+            if (!$bucket) {
+                throw new Exception('Bucket name is required');
             }
-        }else{
+        } else {
             $bucket = $bucket_name;
         }
-        try{
+        try {
             return $this->client->getObject([
-               'Bucket' => $bucket,
-               'Key' => $key
+                'Bucket' => $bucket,
+                'Key' => $key
             ]);
-        }catch (AwsException $ex){
-            die($ex->getMessage());
+        } catch (AwsException $ex) {
+            throw new Exception($ex->getMessage());
         }
     }
-    
+
+    /**
+     * @param $object_key
+     * @return string
+     */
+    public function getObjectName($object_key)
+    {
+        $keys = explode('/', $object_key);
+        return $keys[1] !== "" ? basename($object_key) : "";
+    }
+
     /**
      * Delete the specified resource or object
      *
@@ -195,28 +211,28 @@ class Storage
      */
     public function delete($key, $bucket_name = null)
     {
-        if($bucket_name === null){
-            $bucket = $this->config['bucket'];
-            if(!$bucket){
-                throw new \Exception('Bucket name is required');
+        if ($bucket_name === null) {
+            $bucket = $this->s3Params['bucket'];
+            if (!$bucket) {
+                throw new Exception('Bucket name is required');
             }
-        }else{
+        } else {
             $bucket = $bucket_name;
         }
-        
-        if(!$key){
-            throw new \Exception('Missing required Key');
+
+        if (!$key) {
+            throw new Exception('Missing required Key');
         }
-        
-        try{
+
+        try {
             $this->client->deleteObject([
-               'Bucket' => $bucket,
-               'Key' => $key
+                'Bucket' => $bucket,
+                'Key' => $key
             ]);
-        }catch (AwsException $ex){
-            die($ex->getMessage());
+        } catch (AwsException $ex) {
+            throw new Exception($ex->getMessage());
         }
-        
+
         return true;
     }
 }
